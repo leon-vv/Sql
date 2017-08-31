@@ -122,21 +122,21 @@ mutual
   exprToString : {t1:SqlType} -> Expr acc t1 -> String
   exprToString (Const c {sp}) = showSqlType sp c
   exprToString (Col c) = c
-  exprToString (Concat x y) = "CONCAT( " ++ (soe x) ++ ", " ++ (soe y) ++ ")"
-  exprToString (Is x y) = wps x  ++ " = " ++ wps y
-  exprToString (And x y) = wps x ++ " AND " ++ wps y
-  exprToString (Or x y) = wps x ++ " OR " ++ wps y
-  exprToString (InSubQuery x s) = wps x ++ " IN " ++ wp (selectToString s)
+  exprToString (Concat x y) = "CONCAT( " ++ (ets x) ++ ", " ++ (ets y) ++ ")"
+  exprToString (Is x y) = wpe x  ++ " = " ++ wpe y
+  exprToString (And x y) = wpe x ++ " AND " ++ wpe y
+  exprToString (Or x y) = wpe x ++ " OR " ++ wpe y
+  exprToString (InSubQuery x s) = wpe x ++ " IN " ++ wp (selectToString s)
     
   private
   partial
-  soe : Expr acc type -> String
-  soe = exprToString
+  ets : Expr acc type -> String
+  ets = exprToString
 
   private
   partial
-  wps : Expr acc type -> String
-  wps = wp . soe
+  wpe : Expr acc type -> String
+  wpe = wp . ets
 
   export
   partial
@@ -156,5 +156,5 @@ mutual
         partial
         joinToString : AnyJoin -> String
         joinToString (_ ** (_ ** (JoinClause ty tb on))) =
-          show ty ++ " JOIN " ++ (name tb) ++ " ON " ++ exprToString on
+          show ty ++ " JOIN " ++ (name tb) ++ " ON " ++ ets on
 
