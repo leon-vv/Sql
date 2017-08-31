@@ -58,7 +58,7 @@ mutual
   data Join : Schema -> Schema -> Type where
     JoinClause : JoinType
       -> Table tb_sc
-      -> {auto ss: Implement (typesOfSchema tb_sc) SqlTypeEq}
+      -> {auto ss: schemaImp tb_sc SqlTypeEq}
       -> (on : Expr acc Bool)
       -> Join tb_sc acc
   
@@ -85,7 +85,7 @@ mutual
 	    -> (joins : List AnyJoin)
 
       {- Proofs that the columns used are valid -}
-      -> {auto ss: Implement (typesOfSchema sc) SqlTypeEq}
+      -> {auto ss: schemaImp sc SqlTypeEq}
 	    -> {auto cj: correctJoins joins sc}
       -> {auto sl: SubList (target ++ sc1) sc}
 

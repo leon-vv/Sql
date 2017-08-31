@@ -29,14 +29,14 @@ arrayToObjects arr = (do
                                     Nothing => pure Nothing)
 
 private
-objListToRecords : List Obj -> {auto ip: Implement (typesOfSchema sc) FromJSD} -> JS_IO (Maybe (List (Record sc)))
+objListToRecords : List Obj -> {auto ip: schemaImp sc FromJSD} -> JS_IO (Maybe (List (Record sc)))
 objListToRecords {sc} {ip} objs = do
     maybeRecs <- sequence $ map (objectToRecord sc {fp=ip}) objs
     pure (sequence maybeRecs)
 
 partial
 runSelectQuery : Select sc
-    -> {auto ip: Implement (typesOfSchema sc) FromJSD}
+    -> {auto ip: schemaImp sc FromJSD}
     -> JS_IO (Maybe (List (Record sc)))
 runSelectQuery s {ip} {sc} =
     let queryString = selectToString s
