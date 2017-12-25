@@ -1,4 +1,4 @@
-module JS
+module Sql.JS
 
 import Sql
 
