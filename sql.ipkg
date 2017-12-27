@@ -4,3 +4,4 @@ pkgs = record_, effects, idrisscript
 
 modules = Sql
         , Sql.JS
+        
