@@ -68,11 +68,11 @@ mutual
   asAny : Join tb_sc acc -> AnyJoin
   asAny join = (tb_sc ** (acc ** join))
 
-  correctJoin : (baseTable : Schema) -> AnyJoin -> Type
-  correctJoin bt (tb_sc ** (acc ** join)) = SubList acc (bt ++ tb_sc)
+  CorrectJoin : (baseTable : Schema) -> AnyJoin -> Type
+  CorrectJoin bt (tb_sc ** (acc ** join)) = SubList acc (bt ++ tb_sc)
 
-  correctJoins : List AnyJoin -> (baseTable : Schema) -> Type
-  correctJoins joins bt = All (correctJoin bt) joins
+  CorrectJoins : List AnyJoin -> (baseTable : Schema) -> Type
+  CorrectJoins joins bt = All (CorrectJoin bt) joins
 
   availableColumns : List AnyJoin -> Schema
   availableColumns lst = concat $ map (\(tb_sc ** _) => tb_sc) lst
@@ -86,7 +86,7 @@ mutual
 
       {- Proofs that the columns used are valid -}
       -> {auto ss: schemaImp sc SqlTypeEq}
-	    -> {auto cj: correctJoins joins sc}
+	    -> {auto cj: CorrectJoins joins sc}
       -> {auto sl: SubList (target ++ sc1) sc}
 
       -> Select target
