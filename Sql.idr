@@ -7,33 +7,40 @@ import Data.List.Quantifiers
 
 %default total
 
+public export
 data SqlType =
     Int
   | Bool
   | Text
   
+public export
 data SqlTypeEq : Type -> Type where
   IntSql : SqlTypeEq Int
   BoolSql : SqlTypeEq Bool
   StringSql : SqlTypeEq String
 
+export
 record Table (sch : Schema) where
   constructor MkTablePriv
   name : String
 
+public export
 MkTable : String -> (sch: Schema) -> {sp : schemaImp sch SqlTypeEq} -> Table sch
 MkTable name sch = MkTablePriv name
 
+public export
 getSqlType : SqlTypeEq t -> SqlType
 getSqlType IntSql = Sql.Int
 getSqlType BoolSql = Sql.Bool
 getSqlType StringSql = Sql.Text
 
+public export
 showSqlType : SqlTypeEq t -> t -> String
 showSqlType IntSql v = show v
 showSqlType BoolSql v = show v
 showSqlType StringSql v = show v
 
+public export
 data JoinType =
     Left
   | Right
@@ -43,6 +50,7 @@ data JoinType =
   | RightOuter
   | FullOuter
 
+public export
 Show JoinType where
   show Left = "LEFT"
   show Right = "RIGHT"
@@ -54,6 +62,7 @@ Show JoinType where
 
 mutual
 
+  public export
   data Join : Schema -> Schema -> Type where
     JoinClause : JoinType
       -> Table tb_sc
@@ -62,10 +71,12 @@ mutual
       -> Join acc tb_sc
 
   -- Fields accessed and fields brought into scope
+  public export
   data Joins : Schema -> Schema -> Type where
     Nil : Joins [] []
     Cons : Join acc sch -> Joins accs schs -> Joins (acc++accs) (sch++schs)
 
+  public export
   data Select : Schema -> Type where
     SelectQuery :
       (target: Schema)
@@ -86,6 +97,7 @@ mutual
   -- The first argument to Expr is a schema of all the 
   -- fields that are being used by the expression.
   -- The second argument is the result type of the expression.
+  public export
   data Expr : Schema -> SqlType -> Type where
 	  {- Simple expressions... -} 
     Const : t -> {auto sp: SqlTypeEq t} -> Expr [] (getSqlType sp)
@@ -115,9 +127,11 @@ wp s = "(" ++ s ++ ")"
 
 mutual
 
+  public export
   Show (Join a b) where
-    show (JoinClause type tb expr) = show type ++ " JOIN " ++ (name tb) ++ " ON " ++ show expr
+    show (JoinClause type tb expr) = show type ++ " JOIN " ++ (name tb) ++ " ON " ++ assert_total (show expr)
 
+  public export
   Show (Joins _ _) where
     show Nil = ""
     show (Cons head tail) = show head ++ "\n" ++ show tail
@@ -133,12 +147,10 @@ mutual
 
   -- Expression within parenthese
   private
-  partial
   wpe : Expr _ _ -> String
-  wpe = wp . show
+  wpe = assert_total (wp . show)
 
-  private
-  partial
+  public export
   Show (Select sch) where
     show (SelectQuery sch f w j) = 
       "SELECT "  ++ targetToString sch ++ "\n" ++
