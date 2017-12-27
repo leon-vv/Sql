@@ -1,6 +1,7 @@
 module Sql
 
 import Record
+import Record.JS
 
 import Effects
 import Data.List.Quantifiers
@@ -91,6 +92,7 @@ mutual
       joined in -}
       -> {auto sl: SubList (target ++ accExpr ++ accJoins)
             (baseTable ++ joined)}
+      -> {auto ip: schemaImp sch FromJSD}
 
       -> Select target
 

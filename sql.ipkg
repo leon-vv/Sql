@@ -1,6 +1,6 @@
 package sql
 
-pkgs = record_, effects, idrisscript
+pkgs = record_, effects, idrisscript, event
 
 modules = Sql
         , Sql.JS
