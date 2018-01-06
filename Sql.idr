@@ -6,6 +6,9 @@ import Record.JS
 import Effects
 import Data.List.Quantifiers
 
+
+%include Node "./Sql/runtime.js"
+
 %default total
 
 public export
@@ -26,8 +29,8 @@ record Table (sch : Schema) where
   name : String
 
 public export
-MkTable : String -> (sch: Schema) -> {sp : schemaImp sch SqlTypeEq} -> Table sch
-MkTable name sch = MkTablePriv name
+MkTable : String -> Table sch
+MkTable name = MkTablePriv name
 
 public export
 getSqlType : SqlTypeEq t -> SqlType
@@ -92,11 +95,11 @@ mutual
       joined in -}
       -> {auto sl: SubList (target ++ accExpr ++ accJoins)
             (baseTable ++ joined)}
-      -> {auto ip: schemaImp sch FromJSD}
+      -> {auto ip: schemaImp target FromJSD}
 
       -> Select target
 
-  -- The first argument to Expr is a schema of all the 
+    -- The first argument to Expr is a schema of all the 
   -- fields that are being used by the expression.
   -- The second argument is the result type of the expression.
   public export
@@ -114,7 +117,34 @@ mutual
 
     InSubQuery : {auto sp: SqlTypeEq t} -> Expr sc (getSqlType sp) -> Select [(k, t)] -> Expr ((k, t)::sc) Bool
 
- 
+
+public export
+data Update : Type where
+  UpdateQuery :
+    (table: Table tableSch)
+    -> Record updateSch
+    -> (where_ : Expr accExpr Bool)
+    -> {auto ip: schemaImp updateSch ShowD}
+    -> {auto sl: SubList (updateSch ++ accExpr) tableSch}
+    -> Update
+
+public export
+data Delete : Type where
+  DeleteQuery :
+    (table: Table tableSch)
+    -> (where_: Expr accExpr Bool)
+    -> {auto sl: SubList accExpr tableSch}
+    -> Delete
+
+public export
+data Insert : Type where
+  InsertQuery :
+    (table: Table tableSch)
+    -> Record insertSch
+    -> {auto ip: schemaImp insertSch ShowD}
+    -> {auto sl: SubList insertSch tableSch}
+    -> Insert
+
 -- Join string using separator
 private
 joinStr : List String -> (sep : String) -> String
@@ -164,3 +194,46 @@ mutual
 
           fromToString : Table _ -> String
           fromToString = name
+  
+  public export
+  Show Update where
+    show (UpdateQuery {ip} tbl rec w) =
+      let assign = showRecordAssignment rec {ip=ip}
+      in 
+        "UPDATE " ++ name tbl ++ "\n" ++
+        "SET (" ++ assign ++ ")\n" ++
+        "WHERE " ++ show w
+
+  public export
+  Show Delete where
+    show (DeleteQuery tbl w) =
+      "DELETE FROM " ++ name tbl ++ "\n" ++
+      "WHERE " ++ show w
+
+  public export
+  Show Insert where
+    show (InsertQuery {ip} tbl rec) =
+      let strLst = toStringList {ip=ip} rec
+      in let cols = map fst strLst
+      in let vals = map snd strLst
+      in
+        "INSERT INTO " ++ name tbl ++ "\n" ++
+        "(" ++ joinStr cols ", " ++ ")\n" ++
+        "VALUES (" ++ joinStr vals ", " ++ ")\n"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
