@@ -70,7 +70,7 @@ mutual
   data Join : Schema -> Schema -> Type where
     JoinClause : JoinType
       -> Table tb_sc
-      -> {auto ss: schemaImp tb_sc SqlTypeEq}
+      -> {auto ss: SchemaImp tb_sc SqlTypeEq}
       -> (on : Expr acc Bool)
       -> Join acc tb_sc
 
@@ -95,7 +95,7 @@ mutual
       joined in -}
       -> {auto sl: SubList (target ++ accExpr ++ accJoins)
             (baseTable ++ joined)}
-      -> {auto ip: schemaImp target FromJSD}
+      -> {auto ip: SchemaImp target FromJSD}
 
       -> Select target
 
@@ -124,7 +124,7 @@ data Update : Type where
     (table: Table tableSch)
     -> Record updateSch
     -> (where_ : Expr accExpr Bool)
-    -> {auto ip: schemaImp updateSch ShowD}
+    -> {auto ip: SchemaImp updateSch ShowD}
     -> {auto sl: SubList (updateSch ++ accExpr) tableSch}
     -> Update
 
@@ -141,7 +141,7 @@ data Insert : Type where
   InsertQuery :
     (table: Table tableSch)
     -> Record insertSch
-    -> {auto ip: schemaImp insertSch ShowD}
+    -> {auto ip: SchemaImp insertSch ShowD}
     -> {auto sl: SubList insertSch tableSch}
     -> Insert
 

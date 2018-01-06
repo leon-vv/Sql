@@ -57,13 +57,13 @@ arrayToObjects arr = (do
               _ => pure Nothing
 
 private
-objListToRecords : List (Obj "anonymous") -> {auto ip: schemaImp sch FromJSD} -> JS_IO (Maybe (List (Record sch)))
+objListToRecords : List (Obj "anonymous") -> {auto ip: SchemaImp sch FromJSD} -> JS_IO (Maybe (List (Record sch)))
 objListToRecords {sch} {ip} objs = do
     maybeRecs <- sequence $ map (objectToRecord {schema=sch} {fp=ip}) objs
     pure (sequence maybeRecs)
 
 private
-refToRecords : {auto ip: schemaImp sch FromJSD} -> JSRef -> JS_IO (Maybe (List (Record sch)))
+refToRecords : {auto ip: SchemaImp sch FromJSD} -> JSRef -> JS_IO (Maybe (List (Record sch)))
 refToRecords {ip} {sch} ref = do
   packed <- pack ref
   case packed of
@@ -76,18 +76,18 @@ refToRecords {ip} {sch} ref = do
 
 private
 partial
-refToRecordsUnsafe : {auto ip: schemaImp sch FromJSD} -> JSRef -> JS_IO (List (Record sch))
+refToRecordsUnsafe : {auto ip: SchemaImp sch FromJSD} -> JSRef -> JS_IO (List (Record sch))
 refToRecordsUnsafe {ip} {sch} ref = do (Just lst) <- refToRecords {ip=ip} {sch=sch} ref
                                        pure lst
 
 private
 partial
-toRecord : {ip: schemaImp sch FromJSD} -> Record [("rows", JSRef)] -> JS_IO (List (Record sch))
+toRecord : {ip: SchemaImp sch FromJSD} -> Record [("rows", JSRef)] -> JS_IO (List (Record sch))
 toRecord {ip} {sch} rec = refToRecordsUnsafe {ip=ip} {sch=sch} (rec .. "rows")
 
 export
 partial
-runSelectQuery : {auto ip: schemaImp sch FromJSD}
+runSelectQuery : {auto ip: SchemaImp sch FromJSD}
     -> Select sch
     -> Pool
     -> JS_IO (Event (List (Record sch)))
