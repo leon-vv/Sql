@@ -74,30 +74,28 @@ refToRecords {ip} {sch} ref = do
         Nothing => pure Nothing)
     _ => pure Nothing
 
+private
+partial
+refToRecordsUnsafe : {auto ip: schemaImp sch FromJSD} -> JSRef -> JS_IO (List (Record sch))
+refToRecordsUnsafe {ip} {sch} ref = do (Just lst) <- refToRecords {ip=ip} {sch=sch} ref
+                                       pure lst
 
+private
+partial
+toRecord : {ip: schemaImp sch FromJSD} -> Record [("rows", JSRef)] -> JS_IO (List (Record sch))
+toRecord {ip} {sch} rec = refToRecordsUnsafe {ip=ip} {sch=sch} (rec .. "rows")
+
+export
+partial
 runSelectQuery : {auto ip: schemaImp sch FromJSD}
     -> Select sch
     -> Pool
-    -> Event (List (Record sch))
-runSelectQuery query pool {ip} {sch} = do
+    -> JS_IO (Event (List (Record sch)))
+runSelectQuery {ip} {sch} query pool = (do
     ref <- jscall "query(%0, %1)"
         (JSRef -> JSRef -> JS_IO JSRef) 
         pool (toRef {to=JSString} (show query))
-    maybeRec <- fromEventReference {sch=[("rows", JSRef)]} ref
-    case maybeRec of
-         Just rec => refToRecords {ip=ip} {sch=sch} (rec .. "rows")
-         Nothing => pure Nothing
-
-
-runSelectQueryUnsafe : {auto ip: schemaImp sch FromJSD}
-    -> Select sch
-    -> Pool
-    -> JS_IO (List (Record sch))
-runSelectQueryUnsafe s p {ip} = do
-  maybeList <- runSelectQuery {ip=ip} s p
-  case maybeList of
-    Just lst => pure lst
-    Nothing => idris_crash "Sql.JS: Failed to run select query"
-
-
+    event <- fromGeneratorReference {sch=[("rows", JSRef)]} ref
+    pure (mapIO (toRecord {ip=ip} {sch=sch}) event))
+      
 
