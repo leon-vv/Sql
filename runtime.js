@@ -10,7 +10,8 @@ function makePool(db, user, host, password) {
 }
 
 function query(pool, query) {
-    return new Event(function(cb) {
+
+    return eventGenerator(function(cb) {
 
         pool.query(query, (err, res) => {
 
