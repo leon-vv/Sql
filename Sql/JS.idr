@@ -21,19 +21,19 @@ toRef : ToJS a to => a -> JSRef
 toRef {to} a = unpack (toJS {to=to} a)
 
 public export
-Pool : Type
-Pool = JSRef
+DBConnection : Type
+DBConnection = JSRef
 
 private
 undefined : JSRef
 undefined = unsafePerformIO (jscall "undefined" (JS_IO JSRef))
 
 public export
-makePool : {default "" user: String}
+newConnection : {default "" user: String}
         -> {default "" host: String}
         -> {default "" database: String}
-        -> {default "" password: String} -> JS_IO Pool
-makePool {user} {host} {database} {password} =
+        -> {default "" password: String} -> JS_IO DBConnection
+newConnection {user} {host} {database} {password} =
   jscall "makePool(%0, %1, %2, %3)"
     (JSRef -> JSRef -> JSRef -> JSRef -> JS_IO JSRef)
     (mkRef database) (mkRef user) (mkRef host) (mkRef password)
@@ -89,7 +89,7 @@ export
 partial
 runSelectQuery : {auto ip: SchemaImp sch FromJSD}
     -> Select sch
-    -> Pool
+    -> DBConnection
     -> JS_IO (Event (List (Record sch)))
 runSelectQuery {ip} {sch} query pool = (do
     ref <- jscall "query(%0, %1)"
