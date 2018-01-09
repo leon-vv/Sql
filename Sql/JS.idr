@@ -1,12 +1,8 @@
 module Sql.JS
 
 import Sql
-
 import Event
-
 import Record
-import Record.JS
-
 import FerryJS
 
 import Effects
@@ -33,11 +29,6 @@ newConnection {user} {host} {database} {password} =
   where mkRef : String -> Ptr
         mkRef "" = undefined
         mkRef s = toJS s
-
-toRecordList : FromJS (Record sch) -> Record [("rows", Ptr)] -> List (Record sch)
-toRecordList (FromJSFun f) {sch} rec = let ref = rec .. "rows"
-                                       in (fromJS {to=List (Record sch)} ref)
-
 
 
 -- Escape literal
@@ -89,6 +80,14 @@ mutual
     show (And x y) = wpe x ++ " AND " ++ wpe y
     show (Or x y) = wpe x ++ " OR " ++ wpe y
     show (InSubQuery x s) = wpe x ++ " IN " ++ wp (show s)
+  
+  Show (NamedExprs _ _) where
+    show nexprs = joinStr (toList nexprs) ","
+      where toList : NamedExprs _ _ -> List String
+            toList ExprsNil = []
+            toList (ExprsCons k expr rest) =
+              let str = show expr ++ " AS " ++ ei k
+              in str :: toList rest
 
   -- Expression within parenthese
   private
@@ -97,16 +96,10 @@ mutual
 
   public export
   Show (Select target) where
-    show (SelectQuery {target} f w j) = 
-      "SELECT "  ++ targetToString target ++ "\n" ++
-      "FROM " ++ fromToString f ++ "\n" ++
+    show (SelectQuery exprs f w j) = 
+      "SELECT "  ++ show exprs ++ "\n" ++
+      "FROM " ++ ei (name f) ++ "\n" ++
       "WHERE " ++ show w ++ "\n" ++ show j
-        where
-          targetToString : Schema -> String
-          targetToString sch = joinStr (map fst sch) ", "
-
-          fromToString : Table _ -> String
-          fromToString = name
   
   public export
   Show Update where
@@ -134,18 +127,35 @@ mutual
         "(" ++ joinStr cols ", " ++ ")\n" ++
         "VALUES (" ++ joinStr vals ", " ++ ")\n"
 
+total
+fromJSToExprs : NamedExprs acc res -> FromJS (Record res)
+fromJSToExprs ExprsNil = fromJSRecNil
+fromJSToExprs (ExprsCons {t} k ex rest) =
+  (let fromJSToRest = fromJSToExprs rest
+  in fromJSRecord (fromJS t) fromJSToRest)
+    where fromJS : (t: SqlType) -> FromJS (getIdrisType t)
+          fromJS Sql.Int = fromJSToInt
+          fromJS Sql.Bool = fromJSToBool
+          fromJS Sql.Text = fromJSToString
+
+
+toRecordList : FromJS (Record sch) -> Record [("rows", Ptr)] -> List (Record sch)
+toRecordList (FromJSFun f) {sch} rec = let ref = rec .. "rows"
+                                       in (fromJS {to=List (Record sch)} ref)
+
 
 export
 partial
 runSelectQuery : Select sch
     -> DBConnection
     -> JS_IO (Event (List (Record sch)))
-runSelectQuery query@(SelectQuery {target} {fjs} _ _ _) pool = do
+runSelectQuery query@(SelectQuery {r} {res} exprs _ _ _) pool = do
   ref <- jscall "query(%0, %1)"
       (Ptr -> Ptr -> JS_IO Ptr) 
       pool (toJS (show query))
   event <- fromGeneratorReference {sch=[("rows", Ptr)]} ref
-  pure (map (toRecordList fjs {sch=target}) event)
+  (let fromJS = fromJSToExprs exprs
+  in pure $ map (toRecordList (fromJSToExprs exprs)) event)
  
 
 

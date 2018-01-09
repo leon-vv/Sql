@@ -25,6 +25,18 @@ data SqlTypeEq : Type -> Type where
   BoolSql : SqlTypeEq Bool
   StringSql : SqlTypeEq String
 
+public export
+getSqlType : SqlTypeEq t -> SqlType
+getSqlType IntSql = Sql.Int
+getSqlType BoolSql = Sql.Bool
+getSqlType StringSql = Sql.Text
+
+public export
+getIdrisType : SqlType -> Type
+getIdrisType Sql.Int = Int
+getIdrisType Sql.Bool = Bool
+getIdrisType Sql.String = String
+
 export
 record Table (sch : Schema) where
   constructor MkTablePriv
@@ -39,12 +51,6 @@ MkTable : {auto ip: SchemaImp sch SqlTypeEq}
       -> String
       -> Table sch
 MkTable name = MkTablePriv name
-
-public export
-getSqlType : SqlTypeEq t -> SqlType
-getSqlType IntSql = Sql.Int
-getSqlType BoolSql = Sql.Bool
-getSqlType StringSql = Sql.Text
 
 public export
 data JoinType =
@@ -86,20 +92,19 @@ mutual
   public export
   data Select : Schema -> Type where
     SelectQuery :
-      (from : Table baseTable)
-      -> (where_ : Expr accExpr Bool)
+      NamedExprs accs (r::res) -- Not empty by pattern match
+      -> (from : Table baseTable)
+      -> (where_ : Expr accWhere Bool)
 	    -> (joins : Joins accJoins joined)
-
-      -> {auto fjs: FromJS (Record target)}
       {- Proofs that the columns used are valid
       The fields that are in the target, accessed by the where
       expression and the fields accessed by the joins should be
       a sublist of the fields in the 'from' table and the tables
       joined in -}
       -> {auto sl: SubList
-            (target ++ accExpr ++ accJoins)
+            (accs ++ accWhere ++ accJoins)
             (baseTable ++ joined)}
-      -> Select target
+      -> Select (r::res)
 
   -- The first argument to Expr is a schema of all the 
   -- fields that are being used by the expression.
@@ -118,6 +123,26 @@ mutual
     Or : Expr sc1 a -> Expr sc2 a -> Expr (sc1 ++ sc2) a
 
     InSubQuery : {auto sp: SqlTypeEq t} -> Expr sc (getSqlType sp) -> Select [(k, t)] -> Expr ((k, t)::sc) Bool
+
+  -- First schema contains the fields accessed.
+  -- The second schema contains the result of the query.
+  public export
+  data NamedExprs : Schema -> Schema -> Type where
+    ExprsNil : NamedExprs [] []
+    ExprsCons : (k: String) 
+        -> Expr acc t
+        -> NamedExprs accs res
+        -> NamedExprs (acc ++ accs) ((k, getIdrisType t)::res)
+
+  resultFromJS : NamedExprs acc res -> FromJS (Record res)
+  resultFromJS ExprsNil = fromJSRecNil
+  resultFromJS (ExprsCons {t} k ex rest) =
+    (let fromJSToRest = resultFromJS rest
+    in fromJSRecord (fromJS t) fromJSToRest)
+      where fromJS : (t: SqlType) -> FromJS (getIdrisType t)
+            fromJS Sql.Int = fromJSToInt
+            fromJS Sql.Bool = fromJSToBool
+            fromJS Sql.Text = fromJSToString
 
 
 public export
