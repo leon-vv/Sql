@@ -28,7 +28,11 @@ data SqlTypeEq : Type -> Type where
 export
 record Table (sch : Schema) where
   constructor MkTablePriv
-  name : String
+  namePriv : String
+
+export
+name : Table sch -> String
+name = namePriv
 
 export
 MkTable : {auto ip: SchemaImp sch SqlTypeEq}
@@ -41,12 +45,6 @@ getSqlType : SqlTypeEq t -> SqlType
 getSqlType IntSql = Sql.Int
 getSqlType BoolSql = Sql.Bool
 getSqlType StringSql = Sql.Text
-
-public export
-showSqlType : SqlTypeEq t -> t -> String
-showSqlType IntSql v = show v
-showSqlType BoolSql v = show v
-showSqlType StringSql v = show v
 
 public export
 data JoinType =
@@ -148,96 +146,4 @@ data Insert : Type where
     -> {auto ip: SchemaImp insertSch ShowD}
     -> {auto sl: SubList insertSch tableSch}
     -> Insert
-
--- Join string using separator
-private
-joinStr : List String -> (sep : String) -> String
-joinStr Nil _ = ""
-joinStr [s] _ = s
-joinStr (s::rest) sep = s ++ sep ++ (joinStr rest sep)
-
--- Within parentheses
-private
-wp : String -> String
-wp s = "(" ++ s ++ ")"
-
-mutual
-
-  public export
-  Show (Join a b) where
-    show (JoinClause type tb expr) = show type ++ " JOIN " ++ (name tb) ++ " ON " ++ assert_total (show expr)
-
-  public export
-  Show (Joins _ _) where
-    show Nil = ""
-    show (Cons head tail) = show head ++ "\n" ++ show tail
-
-  Show (Expr _ _) where
-    show (Const c {sp}) = showSqlType sp c
-    show (Col c) = c
-    show (Concat x y) = "CONCAT( " ++ (show x) ++ ", " ++ (show y) ++ ")"
-    show (Is x y) = wpe x  ++ " = " ++ wpe y
-    show (And x y) = wpe x ++ " AND " ++ wpe y
-    show (Or x y) = wpe x ++ " OR " ++ wpe y
-    show (InSubQuery x s) = wpe x ++ " IN " ++ wp (show s)
-
-  -- Expression within parenthese
-  private
-  wpe : Expr _ _ -> String
-  wpe = assert_total (wp . show)
-
-  public export
-  Show (Select target) where
-    show (SelectQuery {target} f w j) = 
-      "SELECT "  ++ targetToString target ++ "\n" ++
-      "FROM " ++ fromToString f ++ "\n" ++
-      "WHERE " ++ show w ++ "\n" ++ show j
-        where
-          targetToString : Schema -> String
-          targetToString sch = joinStr (map fst sch) ", "
-
-          fromToString : Table _ -> String
-          fromToString = name
-  
-  public export
-  Show Update where
-    show (UpdateQuery {ip} tbl rec w) =
-      let assign = showRecordAssignment rec {ip=ip}
-      in 
-        "UPDATE " ++ name tbl ++ "\n" ++
-        "SET (" ++ assign ++ ")\n" ++
-        "WHERE " ++ show w
-
-  public export
-  Show Delete where
-    show (DeleteQuery tbl w) =
-      "DELETE FROM " ++ name tbl ++ "\n" ++
-      "WHERE " ++ show w
-
-  public export
-  Show Insert where
-    show (InsertQuery {ip} tbl rec) =
-      let strLst = toStringList {ip=ip} rec
-      in let cols = map fst strLst
-      in let vals = map snd strLst
-      in
-        "INSERT INTO " ++ name tbl ++ "\n" ++
-        "(" ++ joinStr cols ", " ++ ")\n" ++
-        "VALUES (" ++ joinStr vals ", " ++ ")\n"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
