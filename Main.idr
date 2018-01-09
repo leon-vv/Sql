@@ -6,6 +6,8 @@ import Event
 import Record
 import Record.JS
 
+import FerryJS
+
 import Effects
 
 todoSchema : Schema
@@ -18,7 +20,7 @@ State : Type
 State = Event (List (Record todoSchema))
 
 selectQuery : Select Main.todoSchema
-selectQuery = SelectQuery todoSchema todo (Const True) Nil 
+selectQuery = SelectQuery todo (Const True) Nil 
 
 initialState : JS_IO State
 initialState = let l = "leonvv" in do 

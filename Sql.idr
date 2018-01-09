@@ -3,6 +3,8 @@ module Sql
 import Record
 import Record.JS
 
+import FerryJS
+
 import Effects
 import Data.List.Quantifiers
 
@@ -28,8 +30,10 @@ record Table (sch : Schema) where
   constructor MkTablePriv
   name : String
 
-public export
-MkTable : String -> Table sch
+export
+MkTable : {auto ip: SchemaImp sch SqlTypeEq}
+      -> String
+      -> Table sch
 MkTable name = MkTablePriv name
 
 public export
@@ -70,11 +74,12 @@ mutual
   data Join : Schema -> Schema -> Type where
     JoinClause : JoinType
       -> Table tb_sc
-      -> {auto ss: SchemaImp tb_sc SqlTypeEq}
       -> (on : Expr acc Bool)
       -> Join acc tb_sc
 
-  -- Fields accessed and fields brought into scope
+  -- The first schema contains the fields accessed
+  -- while the second schema contains the fields brought
+  -- into scope by the join.
   public export
   data Joins : Schema -> Schema -> Type where
     Nil : Joins [] []
@@ -83,23 +88,22 @@ mutual
   public export
   data Select : Schema -> Type where
     SelectQuery :
-      (target: Schema)
-      -> (from : Table baseTable)
+      (from : Table baseTable)
       -> (where_ : Expr accExpr Bool)
 	    -> (joins : Joins accJoins joined)
 
+      -> {auto fjs: FromJS (Record target)}
       {- Proofs that the columns used are valid
       The fields that are in the target, accessed by the where
       expression and the fields accessed by the joins should be
       a sublist of the fields in the 'from' table and the tables
       joined in -}
-      -> {auto sl: SubList (target ++ accExpr ++ accJoins)
+      -> {auto sl: SubList
+            (target ++ accExpr ++ accJoins)
             (baseTable ++ joined)}
-      -> {auto ip: SchemaImp target FromJSD}
-
       -> Select target
 
-    -- The first argument to Expr is a schema of all the 
+  -- The first argument to Expr is a schema of all the 
   -- fields that are being used by the expression.
   -- The second argument is the result type of the expression.
   public export
@@ -120,7 +124,7 @@ mutual
 
 public export
 data Update : Type where
-  UpdateQuery :
+  UpdateQuery : ToJS (Record updateSch) =>
     (table: Table tableSch)
     -> Record updateSch
     -> (where_ : Expr accExpr Bool)
@@ -183,9 +187,9 @@ mutual
   wpe = assert_total (wp . show)
 
   public export
-  Show (Select sch) where
-    show (SelectQuery sch f w j) = 
-      "SELECT "  ++ targetToString sch ++ "\n" ++
+  Show (Select target) where
+    show (SelectQuery {target} f w j) = 
+      "SELECT "  ++ targetToString target ++ "\n" ++
       "FROM " ++ fromToString f ++ "\n" ++
       "WHERE " ++ show w ++ "\n" ++ show j
         where
