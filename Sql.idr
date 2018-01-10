@@ -1,13 +1,11 @@
 module Sql
 
 import Record
-import Record.JS
 
 import FerryJS
 
 import Effects
 import Data.List.Quantifiers
-
 
 %include Node "./Sql/runtime.js"
 
@@ -86,8 +84,8 @@ mutual
   -- into scope by the join.
   public export
   data Joins : Schema -> Schema -> Type where
-    Nil : Joins [] []
-    Cons : Join acc sch -> Joins accs schs -> Joins (acc++accs) (sch++schs)
+    JoinNil : Joins [] []
+    JoinCons : Join acc sch -> Joins accs schs -> Joins (acc++accs) (sch++schs)
 
   public export
   data Select : Schema -> Type where
@@ -113,8 +111,7 @@ mutual
   data Expr : Schema -> SqlType -> Type where
 	  {- Simple expressions... -} 
     Const : t -> {auto sp: SqlTypeEq t} -> Expr [] (getSqlType sp)
-    Col : {auto sp: SqlTypeEq t} -> (col: String)  -> Expr [(col, t)]  (getSqlType sp)
-
+    Col : (t: Type) -> {auto sp: SqlTypeEq t} -> (col: String)  -> Expr [(col, t)]  (getSqlType sp)
     {- ... come together to be powerful -}
     Concat : Expr sc1 Text -> Expr sc2 Text -> Expr (sc1 ++ sc2) Text
 
@@ -128,21 +125,74 @@ mutual
   -- The second schema contains the result of the query.
   public export
   data NamedExprs : Schema -> Schema -> Type where
-    ExprsNil : NamedExprs [] []
-    ExprsCons : (k: String) 
+    ExprNil : NamedExprs [] []
+    ExprCons : (k: String) 
         -> Expr acc t
         -> NamedExprs accs res
         -> NamedExprs (acc ++ accs) ((k, getIdrisType t)::res)
 
   resultFromJS : NamedExprs acc res -> FromJS (Record res)
-  resultFromJS ExprsNil = fromJSRecNil
-  resultFromJS (ExprsCons {t} k ex rest) =
+  resultFromJS ExprNil = fromJSRecNil
+  resultFromJS (ExprCons {t} k ex rest) =
     (let fromJSToRest = resultFromJS rest
     in fromJSRecord (fromJS t) fromJSToRest)
       where fromJS : (t: SqlType) -> FromJS (getIdrisType t)
             fromJS Sql.Int = fromJSToInt
             fromJS Sql.Bool = fromJSToBool
             fromJS Sql.Text = fromJSToString
+
+infix 6 =#
+
+export
+(=#) : Expr acc1 t -> Expr acc2 t -> Expr (acc1 ++ acc2) Bool
+(=#) e1 e2 = Is e1 e2
+
+infix 4 ||#
+
+export
+(||#) : Expr acc1 Bool -> Expr acc2 Bool -> Expr (acc1 ++ acc2) Bool
+(||#) e1 e2 = Or e1 e2
+
+infix 5 &&#
+
+export
+(&&#) : Expr acc1 Bool -> Expr acc2 Bool -> Expr (acc1 ++ acc2) Bool
+(&&#) e1 e2 = And e1 e2
+ 
+infixl 2 `isLastExpr`
+infixl 2 `isExpr`
+
+export
+isExpr : (k: String)
+  -> Expr acc t
+  -> NamedExprs accs res
+  -> NamedExprs (acc ++ accs) ((k, getIdrisType t)::res)
+isExpr s e = ExprCons s e
+
+export
+isLastExpr : (k: String) -> Expr acc res -> NamedExprs (acc ++ []) [(k, getIdrisType res)]
+isLastExpr s e = ExprCons s e (ExprNil)
+
+export
+select : NamedExprs accs (r::res)
+  -> {from: Table baseTable} 
+  -> {default (Const True) where_: Expr accWhere Bool}
+  -> {default JoinNil joins: Joins accJoins joined}
+  -> {auto sl: SubList (accs ++ accWhere ++ accJoins) (baseTable ++ joined)}
+  -> Select (r::res)
+select expr {from} {where_} {joins} {sl} =
+  SelectQuery expr from where_ joins {sl=sl}
+
+export
+selectJust : Expr accs t
+  -> {as: String}
+  -> {from: Table baseTable} 
+  -> {default (Const True) where_: Expr accWhere Bool}
+  -> {default JoinNil joins: Joins accJoins joined}
+  -> {auto sl: SubList ((accs ++ []) ++ accWhere ++ accJoins) (baseTable ++ joined)}
+  -> Select [(as, getIdrisType t)]
+selectJust expr {as} {from} {where_} {joins} {sl} =
+  SelectQuery (ExprCons as expr ExprNil) from where_ joins {sl=sl}
 
 
 public export
@@ -196,11 +246,9 @@ showSqlType BoolSql v = show v
 showSqlType StringSql v = escapeLiteral v
 
 mutual
-
   toList : NamedExprs _ _ -> List (String, String)
-  toList ExprsNil = []
-  toList (ExprsCons k expr rest) = (escapeIdentifier k, show expr) :: toList rest
-
+  toList ExprNil = []
+  toList (ExprCons k expr rest) = (escapeIdentifier k, show expr) :: toList rest
 
   showWithSeparator : NamedExprs _ _ -> String -> String
   showWithSeparator nexprs sep =
@@ -222,14 +270,14 @@ mutual
     
   export
   Show (Joins _ _) where
-    show Nil = ""
-    show (Cons head tail) = show head ++ "\n" ++ show tail
+    show JoinNil = ""
+    show (JoinCons head tail) = show head ++ "\n" ++ show tail
 
 
   export 
   Show (Expr _ _) where
     show (Const c {sp}) = showSqlType sp c
-    show (Col c) = escapeIdentifier c
+    show (Col _ c) = escapeIdentifier c
     show (Concat x y) = "CONCAT( " ++ (show x) ++ ", " ++ (show y) ++ ")"
     show (Is x y) = wpe x  ++ " = " ++ wpe y
     show (And x y) = wpe x ++ " AND " ++ wpe y
@@ -237,7 +285,6 @@ mutual
     show (InSubQuery x s) = wpe x ++ " IN " ++ wp (show s)
   
   -- Expression within parenthese
-  private
   wpe : Expr _ _ -> String
   wpe = assert_total (wp . show)
 

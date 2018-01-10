@@ -4,7 +4,6 @@ import Sql.JS
 import Event
 
 import Record
-import Record.JS
 
 import FerryJS
 
@@ -20,7 +19,27 @@ State : Type
 State = Event (List (Record todoSchema))
 
 selectQuery : Select Main.todoSchema
-selectQuery = SelectQuery todo (Const True) Nil 
+selectQuery = 
+  selectJust (Col String "name")
+    {as="name"}
+    {from=todo}
+
+selectQuery2 : Select Main.todoSchema
+selectQuery2 =
+  selectJust (Col String "name")
+    {as="name"}
+    {from=todo}
+    {where_=
+      ((Col String "name" =# Const "abc")
+      &&# (Col String "name" =# Const "def"))}
+
+selectQuery3 : Select [("a", String), ("b", String)]
+selectQuery3 =
+  select
+    ("a" `isExpr` (Const "abc") $
+      ("b" `isLastExpr` (Const "daf")))
+    {from=todo}
+
 
 initialState : JS_IO State
 initialState = let l = "leonvv" in do 

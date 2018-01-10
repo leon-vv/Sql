@@ -30,8 +30,8 @@ newConnection {user} {host} {database} {password} =
         mkRef s = toJS s
 
 fromJSToExprs : NamedExprs acc res -> FromJS (Record res)
-fromJSToExprs ExprsNil = fromJSRecNil
-fromJSToExprs (ExprsCons {t} k ex rest) =
+fromJSToExprs ExprNil = fromJSRecNil
+fromJSToExprs (ExprCons {t} k ex rest) =
   (let fromJSToRest = fromJSToExprs rest
   in fromJSRecord (fromJS t) fromJSToRest)
     where fromJS : (t: SqlType) -> FromJS (getIdrisType t)
