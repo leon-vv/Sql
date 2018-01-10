@@ -81,14 +81,21 @@ mutual
     show (Or x y) = wpe x ++ " OR " ++ wpe y
     show (InSubQuery x s) = wpe x ++ " IN " ++ wp (show s)
   
-  Show (NamedExprs _ _) where
-    show nexprs = joinStr (toList nexprs) ","
-      where toList : NamedExprs _ _ -> List String
-            toList ExprsNil = []
-            toList (ExprsCons k expr rest) =
-              let str = show expr ++ " AS " ++ ei k
-              in str :: toList rest
 
+  toList : NamedExprs _ _ -> List (String, String)
+  toList ExprsNil = []
+  toList (ExprsCons k expr rest) = (ei k, show expr) :: toList rest
+
+  showWithSeparator : NamedExprs _ _ -> String -> String
+  showWithSeparator nexprs sep =
+    joinStr
+          (map (\(k, v) => v ++ sep ++ k) $ toList $ nexprs) 
+          ", "
+
+  -- Show as in a select query
+  Show (NamedExprs _ _) where
+    show nexprs = showWithSeparator nexprs " AS "
+        
   -- Expression within parenthese
   private
   wpe : Expr _ _ -> String
@@ -103,8 +110,8 @@ mutual
   
   public export
   Show Update where
-    show (UpdateQuery {ip} tbl rec w) =
-      let assign = showRecordAssignment rec {ip=ip}
+    show (UpdateQuery tbl nexprs w) =
+      let assign = showWithSeparator nexprs " = "
       in 
         "UPDATE " ++ name tbl ++ "\n" ++
         "SET (" ++ assign ++ ")\n" ++
@@ -118,8 +125,8 @@ mutual
 
   public export
   Show Insert where
-    show (InsertQuery {ip} tbl rec) =
-      let strLst = toStringList {ip=ip} rec
+    show (InsertQuery tbl nexprs) =
+      let strLst = toList nexprs
       in let cols = map fst strLst
       in let vals = map snd strLst
       in

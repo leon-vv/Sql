@@ -149,10 +149,9 @@ public export
 data Update : Type where
   UpdateQuery : ToJS (Record updateSch) =>
     (table: Table tableSch)
-    -> Record updateSch
-    -> (where_ : Expr accExpr Bool)
-    -> {auto ip: SchemaImp updateSch ShowD}
-    -> {auto sl: SubList (updateSch ++ accExpr) tableSch}
+    -> NamedExprs accs _ -- Not empty by pattern match
+    -> (where_ : Expr whereAccs Bool)
+    -> {auto sl: SubList (asccs ++ whereAccs) tableSch}
     -> Update
 
 public export
@@ -167,8 +166,7 @@ public export
 data Insert : Type where
   InsertQuery :
     (table: Table tableSch)
-    -> Record insertSch
-    -> {auto ip: SchemaImp insertSch ShowD}
-    -> {auto sl: SubList insertSch tableSch}
+    -> NamedExprs accs _
+    -> {auto sl: SubList accs tableSch}
     -> Insert
 
