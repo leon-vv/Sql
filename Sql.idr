@@ -169,9 +169,16 @@ isExpr : (k: String)
   -> NamedExprs (acc ++ accs) ((k, getIdrisType t)::res)
 isExpr s e = ExprCons s e
 
+replaceFirst : {P : m -> n -> Type} -> x = y -> P x a -> P y a
+replaceFirst Refl prf = prf
+
+-- We need to rewrite acc ++ [] to acc
+-- the standard Idris replace function does not work
+-- as it tries to replace the last argument of the type.
+-- In this case we need to replace the first argument of the type.
 export
-isLastExpr : (k: String) -> Expr acc res -> NamedExprs (acc ++ []) [(k, getIdrisType res)]
-isLastExpr s e = ExprCons s e (ExprNil)
+isLastExpr : (k: String) -> Expr acc res -> NamedExprs acc [(k, getIdrisType res)]
+isLastExpr {acc} s e = replaceFirst {P=NamedExprs} (appendNilRightNeutral acc) (ExprCons s e ExprNil)
 
 export
 select : NamedExprs accs (r::res)
@@ -189,10 +196,10 @@ selectJust : Expr accs t
   -> {from: Table baseTable} 
   -> {default (Const True) where_: Expr accWhere Bool}
   -> {default JoinNil joins: Joins accJoins joined}
-  -> {auto sl: SubList ((accs ++ []) ++ accWhere ++ accJoins) (baseTable ++ joined)}
+  -> {auto sl: SubList (accs ++ accWhere ++ accJoins) (baseTable ++ joined)}
   -> Select [(as, getIdrisType t)]
 selectJust expr {as} {from} {where_} {joins} {sl} =
-  SelectQuery (ExprCons as expr ExprNil) from where_ joins {sl=sl}
+  SelectQuery (as `isLastExpr` expr) from where_ joins {sl=sl}
 
 
 public export
