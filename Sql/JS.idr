@@ -13,7 +13,6 @@ public export
 DBConnection : Type
 DBConnection = Ptr
 
-private
 undefined : Ptr
 undefined = unsafePerformIO (jscall "undefined" (JS_IO Ptr))
 
@@ -30,111 +29,6 @@ newConnection {user} {host} {database} {password} =
         mkRef "" = undefined
         mkRef s = toJS s
 
-
--- Escape literal
-private
-el : String -> String
-el = unsafePerformIO . jscall "escapeLiteral(%0)" (String -> JS_IO String)
-
--- Escape identifier
-private
-ei : String -> String
-ei = unsafePerformIO . jscall "escapeIdentifier(%0)" (String -> JS_IO String)
-    
--- Join string using separator
-private
-joinStr : List String -> (sep : String) -> String
-joinStr Nil _ = ""
-joinStr [s] _ = s
-joinStr (s::rest) sep = s ++ sep ++ (joinStr rest sep)
-
--- Within parentheses
-private
-wp : String -> String
-wp s = "(" ++ s ++ ")"
-
-
-private
-showSqlType : SqlTypeEq t -> t -> String
-showSqlType IntSql v = show v
-showSqlType BoolSql v = show v
-showSqlType StringSql v = el v
-
-
-mutual
-
-  public export
-  Show (Join a b) where
-    show (JoinClause type tb expr) = show type ++ " JOIN " ++ ei (name tb) ++ " ON " ++ assert_total (show expr)
-
-  public export
-  Show (Joins _ _) where
-    show Nil = ""
-    show (Cons head tail) = show head ++ "\n" ++ show tail
-
-  Show (Expr _ _) where
-    show (Const c {sp}) = showSqlType sp c
-    show (Col c) = ei c
-    show (Concat x y) = "CONCAT( " ++ (show x) ++ ", " ++ (show y) ++ ")"
-    show (Is x y) = wpe x  ++ " = " ++ wpe y
-    show (And x y) = wpe x ++ " AND " ++ wpe y
-    show (Or x y) = wpe x ++ " OR " ++ wpe y
-    show (InSubQuery x s) = wpe x ++ " IN " ++ wp (show s)
-  
-
-  toList : NamedExprs _ _ -> List (String, String)
-  toList ExprsNil = []
-  toList (ExprsCons k expr rest) = (ei k, show expr) :: toList rest
-
-  showWithSeparator : NamedExprs _ _ -> String -> String
-  showWithSeparator nexprs sep =
-    joinStr
-          (map (\(k, v) => v ++ sep ++ k) $ toList $ nexprs) 
-          ", "
-
-  -- Show as in a select query
-  Show (NamedExprs _ _) where
-    show nexprs = showWithSeparator nexprs " AS "
-        
-  -- Expression within parenthese
-  private
-  wpe : Expr _ _ -> String
-  wpe = assert_total (wp . show)
-
-  public export
-  Show (Select target) where
-    show (SelectQuery exprs f w j) = 
-      "SELECT "  ++ show exprs ++ "\n" ++
-      "FROM " ++ ei (name f) ++ "\n" ++
-      "WHERE " ++ show w ++ "\n" ++ show j
-  
-  public export
-  Show Update where
-    show (UpdateQuery tbl nexprs w) =
-      let assign = showWithSeparator nexprs " = "
-      in 
-        "UPDATE " ++ name tbl ++ "\n" ++
-        "SET (" ++ assign ++ ")\n" ++
-        "WHERE " ++ show w
-
-  public export
-  Show Delete where
-    show (DeleteQuery tbl w) =
-      "DELETE FROM " ++ name tbl ++ "\n" ++
-      "WHERE " ++ show w
-
-  public export
-  Show Insert where
-    show (InsertQuery tbl nexprs) =
-      let strLst = toList nexprs
-      in let cols = map fst strLst
-      in let vals = map snd strLst
-      in
-        "INSERT INTO " ++ name tbl ++ "\n" ++
-        "(" ++ joinStr cols ", " ++ ")\n" ++
-        "VALUES (" ++ joinStr vals ", " ++ ")\n"
-
-total
 fromJSToExprs : NamedExprs acc res -> FromJS (Record res)
 fromJSToExprs ExprsNil = fromJSRecNil
 fromJSToExprs (ExprsCons {t} k ex rest) =
@@ -150,7 +44,6 @@ toRecordList : FromJS (Record sch) -> Record [("rows", Ptr)] -> List (Record sch
 toRecordList (FromJSFun f) {sch} rec = let ref = rec .. "rows"
                                        in (fromJS {to=List (Record sch)} ref)
 
-
 export
 partial
 runSelectQuery : Select sch
@@ -164,6 +57,8 @@ runSelectQuery query@(SelectQuery {r} {res} exprs _ _ _) pool = do
   (let fromJS = fromJSToExprs exprs
   in pure $ map (toRecordList (fromJSToExprs exprs)) event)
  
+
+
 
 
 
