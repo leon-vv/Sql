@@ -170,13 +170,15 @@ data Insert : Type where
     -> {auto sl: SubList accs tableSch}
     -> Insert
 
--- Escape literal
-el : String -> String
-el = unsafePerformIO . jscall "escapeLiteral(%0)" (String -> JS_IO String)
+escapeLiteral : String -> String
+escapeLiteral =
+  unsafePerformIO .
+    jscall "escapeLiteral(%0)" (String -> JS_IO String)
 
--- Escape identifier
-ei : String -> String
-ei = unsafePerformIO . jscall "escapeIdentifier(%0)" (String -> JS_IO String)
+escapeIdentifier : String -> String
+escapeIdentifier =
+  unsafePerformIO .
+    jscall "escapeIdentifier(%0)" (String -> JS_IO String)
     
 -- Join string using separator
 joinStr : List String -> (sep : String) -> String
@@ -191,13 +193,13 @@ wp s = "(" ++ s ++ ")"
 showSqlType : SqlTypeEq t -> t -> String
 showSqlType IntSql v = show v
 showSqlType BoolSql v = show v
-showSqlType StringSql v = el v
+showSqlType StringSql v = escapeLiteral v
 
 mutual
 
   toList : NamedExprs _ _ -> List (String, String)
   toList ExprsNil = []
-  toList (ExprsCons k expr rest) = (ei k, show expr) :: toList rest
+  toList (ExprsCons k expr rest) = (escapeIdentifier k, show expr) :: toList rest
 
 
   showWithSeparator : NamedExprs _ _ -> String -> String
@@ -215,7 +217,7 @@ mutual
   Show (Join a b) where
     show (JoinClause type tb expr) =
       show type ++ " JOIN " ++
-        ei (name tb) ++ " ON " ++ 
+        escapeIdentifier (name tb) ++ " ON " ++ 
         assert_total (show expr)
     
   export
@@ -227,7 +229,7 @@ mutual
   export 
   Show (Expr _ _) where
     show (Const c {sp}) = showSqlType sp c
-    show (Col c) = ei c
+    show (Col c) = escapeIdentifier c
     show (Concat x y) = "CONCAT( " ++ (show x) ++ ", " ++ (show y) ++ ")"
     show (Is x y) = wpe x  ++ " = " ++ wpe y
     show (And x y) = wpe x ++ " AND " ++ wpe y
@@ -243,7 +245,7 @@ mutual
   Show (Select target) where
     show (SelectQuery exprs f w j) = 
       "SELECT "  ++ show exprs ++ "\n" ++
-      "FROM " ++ ei (name f) ++ "\n" ++
+      "FROM " ++ escapeIdentifier (name f) ++ "\n" ++
       "WHERE " ++ show w ++ "\n" ++ show j
   
 export
