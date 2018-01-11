@@ -39,10 +39,10 @@ fromJSToExprs (ExprCons {t} k ex rest) =
           fromJS Sql.Bool = fromJSToBool
           fromJS Sql.Text = fromJSToString
 
-
+partial
 toRecordList : FromJS (Record sch) -> Record [("rows", Ptr)] -> List (Record sch)
 toRecordList (FromJSFun f) {sch} rec = let ref = rec .. "rows"
-                                       in (fromJS {to=List (Record sch)} ref)
+                                       in (fromJSUnsafe {to=List (Record sch)} ref)
 
 runQuery : Ptr -> String -> JS_IO Ptr
 runQuery pool query = jscall "query(%0, %1)" (Ptr -> Ptr -> JS_IO Ptr) pool (toJS query)
