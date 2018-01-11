@@ -7,7 +7,7 @@ import FerryJS
 import Effects
 import Data.List.Quantifiers
 
-%include Node "./Sql/runtime.js"
+%include Node "sql/runtime.js"
 
 %default total
 

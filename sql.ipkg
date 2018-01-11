@@ -5,3 +5,5 @@ pkgs = record_, effects, idrisscript, event, ferryjs
 modules = Sql
         , Sql.JS
         
+
+objs = runtime.js
