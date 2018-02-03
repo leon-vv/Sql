@@ -1,6 +1,6 @@
 package sql
 
-pkgs = record_, effects, idrisscript, event, ferryjs
+pkgs = record_, effects, event, ferryjs
 
 modules = Sql
         , Sql.JS
