@@ -21,14 +21,36 @@ function escapeLiteral(lit) {
 
 function query(pool, query) {
 
-    return eventGenerator(function(cb) {
+    query(%0, %1)
 
-        pool.query(query, (err, res) => {
+    var cbs = []
 
-            if(err) throw err;
+    pool.query(query, function(err, result) {
 
-            cb(res);
+        if(err) throw err;
 
-        });
+        for(var i = 0; i < cbs.length; i++) {
+            
+            cbs[i](result)
+        }
     });
+
+    // Simulate native event
+    return {
+        on: function(name, cb) {
+            cbs.push(cb)
+        },
+        removeListener: function(cb) {
+
+            for(var i = 0; i < cbs.length; i++) {
+
+                if(cbs[i] == cb) cbs.splice(i, 1)
+            }
+        }
+    }
+
 }
+
+
+
+

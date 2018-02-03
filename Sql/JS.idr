@@ -29,20 +29,21 @@ newConnection {user} {host} {database} {password} =
         mkRef "" = undefined
         mkRef s = toJS s
 
-fromJSToExprs : NamedExprs acc res -> FromJS (Record res)
-fromJSToExprs ExprNil = fromJSRecNil
-fromJSToExprs (ExprCons {t} k ex rest) =
-  (let fromJSToRest = fromJSToExprs rest
-  in fromJSRecord (fromJS t) fromJSToRest)
-    where fromJS : (t: SqlType) -> FromJS (getIdrisType t)
-          fromJS Sql.Int = fromJSToInt
-          fromJS Sql.Bool = fromJSToBool
-          fromJS Sql.Text = fromJSToString
+toIdrisExprs : NamedExprs acc res -> ToIdris (Record res)
+toIdrisExprs ExprNil = toIdrisRecNil
+toIdrisExprs (ExprCons {t} k ex rest) =
+  (let toIdrisRest = toIdrisExprs rest
+  in toIdrisRecord (toIdris t) toIdrisRest)
+    where toIdris : (t: SqlType) -> ToIdris (getIdrisType t)
+          toIdris Sql.Int = toIdrisInt
+          toIdris Sql.Bool = toIdrisBool
+          toIdris Sql.Text = toIdrisString
 
 partial
-toRecordList : FromJS (Record sch) -> Record [("rows", Ptr)] -> List (Record sch)
-toRecordList (FromJSFun f) {sch} rec = let ref = rec .. "rows"
-                                       in (fromJSUnsafe {to=List (Record sch)} ref)
+toRecordList : ToIdris (Record sch) -> Record [("rows", Ptr)] -> List (Record sch)
+toRecordList (ToIdrisFn f) {sch} rec =
+  let ref = rec .. "rows"
+  in (toIdrisUnsafe {to=List (Record sch)} ref)
 
 runQuery : Ptr -> String -> JS_IO Ptr
 runQuery pool query = jscall "query(%0, %1)" (Ptr -> Ptr -> JS_IO Ptr) pool (toJS query)
@@ -51,33 +52,37 @@ export
 partial
 runSelectQuery : Select sch
     -> DBConnection
-    -> JS_IO (Event (List (Record sch)))
-runSelectQuery query@(SelectQuery {r} {res} exprs _ _ _) conn = do
-  ref <- runQuery conn (show query)
-  event <- fromGeneratorReference {sch=[("rows", Ptr)]} ref
-  (let fromJS = fromJSToExprs exprs
-  in pure $ map (toRecordList (fromJSToExprs exprs)) event)
+    -> Event (List (Record sch))
+runSelectQuery query@(SelectQuery {r} {res} exprs _ _ _) conn =
+  let queryResult = runQuery conn (show query)
+  in let schema = [("rows", List (Record (r::res)))]
+  in let ti = toIdrisList (toIdrisExprs exprs)
+  in let ev = ptrToEvent {to=Record schema} Node queryResult "" 
+  in map (.. "rows") ev
 
 -- Execute query and retrieve rowCount
-rowCountQuery : String -> DBConnection -> JS_IO (Event Int)
-rowCountQuery query conn = do
-  ref <- runQuery conn query
-  event <- fromGeneratorReference {sch=[("rowCount", Int)]} ref
-  pure (map (\rec => rec .. "rowCount") event)
+rowCountQuery : String -> DBConnection -> Event Int
+rowCountQuery query conn =
+  let queryResult = runQuery conn (show query)
+  in let ev = assert_total $
+                ptrToEvent
+                  {to=Record [("rowCount", Int)]}
+                  Node queryResult ""
+  in map (.. "rowCount") ev
  
 export
 partial
-runUpdateQuery : Update -> DBConnection -> JS_IO (Event Int)
-runUpdateQuery upd conn =  rowCountQuery (show upd) conn
+runUpdateQuery : Update -> DBConnection -> Event Int
+runUpdateQuery upd conn = rowCountQuery (show upd) conn
 
 export
 partial
-runDeleteQuery : Delete -> DBConnection -> JS_IO (Event Int)
+runDeleteQuery : Delete -> DBConnection -> Event Int
 runDeleteQuery del conn = rowCountQuery (show del) conn
 
 export
 partial
-runInsertQuery : Insert -> DBConnection -> JS_IO (Event Int)
+runInsertQuery : Insert -> DBConnection -> Event Int
 runInsertQuery ins conn = rowCountQuery (show ins) conn
 
 

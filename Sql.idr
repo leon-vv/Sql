@@ -33,7 +33,7 @@ public export
 getIdrisType : SqlType -> Type
 getIdrisType Sql.Int = Int
 getIdrisType Sql.Bool = Bool
-getIdrisType Sql.String = String
+getIdrisType Sql.Text = String
 
 export
 record Table (sch : Schema) where
@@ -131,15 +131,15 @@ mutual
         -> NamedExprs accs res
         -> NamedExprs (acc ++ accs) ((k, getIdrisType t)::res)
 
-  resultFromJS : NamedExprs acc res -> FromJS (Record res)
-  resultFromJS ExprNil = fromJSRecNil
-  resultFromJS (ExprCons {t} k ex rest) =
-    (let fromJSToRest = resultFromJS rest
-    in fromJSRecord (fromJS t) fromJSToRest)
-      where fromJS : (t: SqlType) -> FromJS (getIdrisType t)
-            fromJS Sql.Int = fromJSToInt
-            fromJS Sql.Bool = fromJSToBool
-            fromJS Sql.Text = fromJSToString
+  resultToIdris : NamedExprs acc res -> ToIdris (Record res)
+  resultToIdris ExprNil = toIdrisRecNil
+  resultToIdris (ExprCons {t} k ex rest) =
+    (let toIdrisRest = resultToIdris rest
+    in toIdrisRecord (toIdris t) toIdrisRest)
+      where toIdris : (t: SqlType) -> ToIdris (getIdrisType t)
+            toIdris Sql.Int = toIdrisInt
+            toIdris Sql.Bool = toIdrisBool
+            toIdris Sql.Text = toIdrisString
 
 infix 6 =#
 
