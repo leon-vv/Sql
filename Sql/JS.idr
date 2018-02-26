@@ -49,15 +49,23 @@ runQuery : Ptr -> String -> JS_IO Ptr
 runQuery pool query = jscall "query(%0, %1)" (Ptr -> Ptr -> JS_IO Ptr) pool (toJS query)
 
 export
+SelectQueryResult : Schema -> Type
+SelectQueryResult sch = (Ptr, Select sch)
+
+export
 partial
 runSelectQuery : Select sch
     -> DBConnection
-    -> Event (List (Record sch))
-runSelectQuery query@(SelectQuery {r} {res} exprs _ _ _) conn =
-  let queryResult = runQuery conn (show query)
-  in let schema = [("rows", List (Record (r::res)))]
+    -> JS_IO (SelectQueryResult sch)
+runSelectQuery query conn = (`MkPair` query) <$> runQuery conn (show query)
+
+export
+partial
+waitSelectResult : SelectQueryResult sch -> Event (List (Record sch))
+waitSelectResult (ptr, (SelectQuery {r} {res} exprs _ _ _)) =
+  let schema = [("rows", List (Record (r::res)))]
   in let ti = toIdrisList (toIdrisExprs exprs)
-  in let ev = ptrToEvent {to=Record schema} Node queryResult "" 
+  in let ev = ptrToEvent {to=Record schema} Node (pure ptr) "" 
   in map (.. "rows") ev
 
 -- Execute query and retrieve rowCount
