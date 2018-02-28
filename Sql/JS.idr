@@ -60,38 +60,41 @@ runSelectQuery : Select sch
 runSelectQuery query conn = (`MkPair` query) <$> runQuery conn (show query)
 
 export
-partial
 waitSelectResult : SelectQueryResult sch -> Event (List (Record sch))
 waitSelectResult (ptr, (SelectQuery {r} {res} exprs _ _ _)) =
   let schema = [("rows", List (Record (r::res)))]
   in let ti = toIdrisList (toIdrisExprs exprs)
-  in let ev = ptrToEvent {to=Record schema} Node (pure ptr) "" 
+  in let ev = assert_total $ ptrToEvent {to=Record schema} Node (pure ptr) "" 
   in map (.. "rows") ev
 
--- Execute query and retrieve rowCount
-rowCountQuery : String -> DBConnection -> Event Int
-rowCountQuery query conn =
-  let queryResult = runQuery conn (show query)
-  in let ev = assert_total $
-                ptrToEvent
-                  {to=Record [("rowCount", Int)]}
-                  Node queryResult ""
+export
+RowCountResult : Type
+RowCountResult = Ptr
+
+export
+waitRowCountResult : RowCountResult -> Event Int
+waitRowCountResult ptr = 
+  let ev = assert_total $
+            ptrToEvent {to=Record [("rowCount", Int)]} Node (pure ptr) ""
   in map (.. "rowCount") ev
- 
-export
-partial
-runUpdateQuery : Update -> DBConnection -> Event Int
-runUpdateQuery upd conn = rowCountQuery (show upd) conn
+
+rowCountQuery : Show a => a -> DBConnection -> JS_IO RowCountResult
+rowCountQuery query conn = runQuery conn (show query)
 
 export
 partial
-runDeleteQuery : Delete -> DBConnection -> Event Int
-runDeleteQuery del conn = rowCountQuery (show del) conn
+runUpdateQuery : Update -> DBConnection -> JS_IO RowCountResult
+runUpdateQuery = rowCountQuery
 
 export
 partial
-runInsertQuery : Insert -> DBConnection -> Event Int
-runInsertQuery ins conn = rowCountQuery (show ins) conn
+runDeleteQuery : Delete -> DBConnection -> JS_IO RowCountResult
+runDeleteQuery = rowCountQuery
+
+export
+partial
+runInsertQuery : Insert -> DBConnection -> JS_IO RowCountResult
+runInsertQuery = rowCountQuery
 
 
 
