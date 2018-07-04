@@ -210,6 +210,15 @@ data Update : Type where
     -> {auto sl: SubList (accs ++ whereAccs) tableSch}
     -> Update
 
+export
+update : Table tableSch 
+         -> {values: NamedExprs accs _}
+         -> {where_: Expr whereAccs Bool}
+         -> {auto sl: SubList (accs ++ whereAccs) tableSch}
+         -> Update
+update t {values} {where_} {sl} = UpdateQuery t values where_ {sl=sl}
+
+
 public export
 data Delete : Type where
   DeleteQuery :
