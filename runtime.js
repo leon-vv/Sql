@@ -21,8 +21,6 @@ function escapeLiteral(lit) {
 
 function query(pool, query) {
 
-    query(%0, %1)
-
     var cbs = []
 
     pool.query(query, function(err, result) {

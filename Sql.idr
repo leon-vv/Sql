@@ -204,11 +204,10 @@ selectJust expr {as} {from} {where_} {joins} {sl} =
 
 public export
 data Update : Type where
-  UpdateQuery : ToJS (Record updateSch) =>
-    (table: Table tableSch)
-    -> NamedExprs accs _ -- Not empty by pattern match
+  UpdateQuery : (table: Table tableSch)
+    -> NamedExprs accs _
     -> (where_ : Expr whereAccs Bool)
-    -> {auto sl: SubList (asccs ++ whereAccs) tableSch}
+    -> {auto sl: SubList (accs ++ whereAccs) tableSch}
     -> Update
 
 public export
