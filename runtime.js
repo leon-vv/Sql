@@ -38,7 +38,7 @@ function query(pool, query) {
         on: function(name, cb) {
             cbs.push(cb)
         },
-        removeListener: function(cb) {
+        removeListener: function(name, cb) {
 
             for(var i = 0; i < cbs.length; i++) {
 
