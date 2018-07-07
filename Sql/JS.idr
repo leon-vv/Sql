@@ -9,7 +9,7 @@ import Effects
 
 %default total
 
-public export
+export
 DBConnection : Type
 DBConnection = Ptr
 
@@ -60,7 +60,7 @@ runSelectQuery : Select sch
 runSelectQuery query conn = (`MkPair` query) <$> runQuery conn (show query)
 
 export
-waitSelectResult : SelectQueryResult sch -> Event (List (Record sch))
+waitSelectResult : SelectQueryResult sch -> Event Single (List (Record sch))
 waitSelectResult (ptr, (SelectQuery {r} {res} exprs _ _ _)) =
   let schema = [("rows", List (Record (r::res)))]
   in let ti = toIdrisList (toIdrisExprs exprs)
@@ -72,7 +72,7 @@ RowCountResult : Type
 RowCountResult = Ptr
 
 export
-waitRowCountResult : RowCountResult -> Event Int
+waitRowCountResult : RowCountResult -> Event Single Int
 waitRowCountResult ptr = 
   let ev = assert_total $
             ptrToEvent {to=Record [("rowCount", Int)]} Node (pure ptr) ""
