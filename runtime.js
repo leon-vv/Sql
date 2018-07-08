@@ -25,7 +25,10 @@ function query(pool, query) {
 
     pool.query(query, function(err, result) {
 
-        if(err) throw err;
+        if(err) {
+          console.error('Error executing query', query)
+          throw err;
+        }
 
         for(var i = 0; i < cbs.length; i++) {
             

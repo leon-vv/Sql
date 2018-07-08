@@ -268,7 +268,7 @@ mutual
   showWithSeparator : NamedExprs _ _ -> String -> String
   showWithSeparator nexprs sep =
     joinStr
-      (map (\(k, v) => v ++ sep ++ k) $ toList $ nexprs) 
+      (map (\(k, v) => k ++ sep ++ v) $ toList $ nexprs) 
       ", "
 
   -- Show as in a select query
@@ -316,7 +316,7 @@ Show Update where
     let assign = showWithSeparator nexprs " = "
     in 
       "UPDATE " ++ name tbl ++ "\n" ++
-      "SET (" ++ assign ++ ")\n" ++
+      "SET " ++ assign ++ "\n" ++
       "WHERE " ++ show w
 
 export
