@@ -32,12 +32,8 @@ newConnection {user} {host} {database} {password} =
 toIdrisExprs : NamedExprs acc res -> ToIdris (Record res)
 toIdrisExprs ExprNil = toIdrisRecNil
 toIdrisExprs (ExprCons {t} k ex rest) =
-  (let toIdrisRest = toIdrisExprs rest
-  in toIdrisRecord (toIdris t) toIdrisRest)
-    where toIdris : (t: SqlType) -> ToIdris (getIdrisType t)
-          toIdris Sql.Int = toIdrisInt
-          toIdris Sql.Bool = toIdrisBool
-          toIdris Sql.Text = toIdrisString
+  toIdrisRecord (toIdrisSql t) (toIdrisExprs rest)
+
 
 partial
 toRecordList : ToIdris (Record sch) -> Record [("rows", Ptr)] -> List (Record sch)

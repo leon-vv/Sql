@@ -16,24 +16,39 @@ data SqlType =
     Int
   | Bool
   | Text
-  
+  | Nullable SqlType
+
 public export
 data SqlTypeEq : Type -> Type where
   IntSql : SqlTypeEq Int
   BoolSql : SqlTypeEq Bool
   StringSql : SqlTypeEq String
+  MaybeIntSql : SqlTypeEq (Maybe Int)
+  MaybeBoolSql : SqlTypeEq (Maybe Bool)
+  MaybeStringSql : SqlTypeEq (Maybe String)
 
 public export
 getSqlType : SqlTypeEq t -> SqlType
 getSqlType IntSql = Sql.Int
 getSqlType BoolSql = Sql.Bool
 getSqlType StringSql = Sql.Text
+getSqlType MaybeIntSql = Nullable Sql.Int
+getSqlType MaybeBoolSql = Nullable Sql.Bool
+getSqlType MaybeStringSql = Nullable Sql.Text
 
 public export
 getIdrisType : SqlType -> Type
 getIdrisType Sql.Int = Int
 getIdrisType Sql.Bool = Bool
 getIdrisType Sql.Text = String
+getIdrisType (Sql.Nullable t) = Maybe (getIdrisType t)
+
+export
+toIdrisSql : (t: SqlType) -> ToIdris (getIdrisType t)
+toIdrisSql Sql.Int = toIdrisInt
+toIdrisSql Sql.Bool = toIdrisBool
+toIdrisSql Sql.Text = toIdrisString
+toIdrisSql (Sql.Nullable t) = toIdrisMaybe (toIdrisSql t)
 
 export
 record Table (sch : Schema) where
@@ -70,6 +85,7 @@ Show JoinType where
   show RightOuter = "RIGHT OUTER"
   show FullOuter = "FULL OUTER"
 
+      
 mutual
 
   public export
@@ -135,12 +151,7 @@ mutual
   resultToIdris ExprNil = toIdrisRecNil
   resultToIdris (ExprCons {t} k ex rest) =
     (let toIdrisRest = resultToIdris rest
-    in toIdrisRecord (toIdris t) toIdrisRest)
-      where toIdris : (t: SqlType) -> ToIdris (getIdrisType t)
-            toIdris Sql.Int = toIdrisInt
-            toIdris Sql.Bool = toIdrisBool
-            toIdris Sql.Text = toIdrisString
-
+    in toIdrisRecord (toIdrisSql t) toIdrisRest)
 infix 6 =#
 
 export
@@ -255,10 +266,19 @@ joinStr (s::rest) sep = s ++ sep ++ (joinStr rest sep)
 wp : String -> String
 wp s = "(" ++ s ++ ")"
 
+nullIfNothing : Maybe String -> String
+nullIfNothing Nothing = "NULL"
+nullIfNothing (Just s) = s
+
 showSqlType : SqlTypeEq t -> t -> String
 showSqlType IntSql v = show v
 showSqlType BoolSql v = show v
 showSqlType StringSql v = escapeLiteral v
+
+showSqlType MaybeIntSql v = nullIfNothing $ map show v
+showSqlType MaybeBoolSql v = nullIfNothing $ map show v
+showSqlType MaybeStringSql v = nullIfNothing $ map escapeLiteral v
+
 
 mutual
   toList : NamedExprs _ _ -> List (String, String)
