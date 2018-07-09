@@ -110,13 +110,14 @@ mutual
       -> (from : Table baseTable)
       -> (where_ : Expr accWhere Bool)
 	    -> (joins : Joins accJoins joined)
+	    -> (orderBy : Maybe (Expr accOrder a))
       {- Proofs that the columns used are valid
       The fields that are in the target, accessed by the where
       expression and the fields accessed by the joins should be
       a sublist of the fields in the 'from' table and the tables
       joined in -}
       -> {auto sl: SubList
-            (accs ++ accWhere ++ accJoins)
+            (accs ++ accWhere ++ accJoins ++ accOrder)
             (baseTable ++ joined)}
       -> Select (r::res)
 
@@ -196,10 +197,12 @@ select : NamedExprs accs (r::res)
   -> {from: Table baseTable} 
   -> {default (Const True) where_: Expr accWhere Bool}
   -> {default JoinNil joins: Joins accJoins joined}
-  -> {auto sl: SubList (accs ++ accWhere ++ accJoins) (baseTable ++ joined)}
+  -> {default Nothing orderBy: Maybe (Expr accOrder a)}
+  -> {auto sl: SubList (accs ++ accWhere ++ accJoins ++ accOrder)
+                       (baseTable ++ joined)}
   -> Select (r::res)
-select expr {from} {where_} {joins} {sl} =
-  SelectQuery expr from where_ joins {sl=sl}
+select expr {from} {where_} {joins} {sl} {orderBy} =
+    SelectQuery expr from where_ joins orderBy {sl=sl}
 
 export
 selectJust : Expr accs t
@@ -207,10 +210,12 @@ selectJust : Expr accs t
   -> {from: Table baseTable} 
   -> {default (Const True) where_: Expr accWhere Bool}
   -> {default JoinNil joins: Joins accJoins joined}
-  -> {auto sl: SubList (accs ++ accWhere ++ accJoins) (baseTable ++ joined)}
+  -> {default Nothing orderBy: Maybe (Expr accOrder a)}
+  -> {auto sl: SubList (accs ++ accWhere ++ accJoins ++ accOrder)
+                       (baseTable ++ joined)}
   -> Select [(as, getIdrisType t)]
-selectJust expr {as} {from} {where_} {joins} {sl} =
-  SelectQuery (as `isLastExpr` expr) from where_ joins {sl=sl}
+selectJust expr {as} {from} {where_} {joins} {sl} {orderBy} =
+  SelectQuery (as `isLastExpr` expr) from where_ joins orderBy {sl=sl}
 
 
 public export
@@ -314,7 +319,7 @@ mutual
     show (Const c {sp}) = showSqlType sp c
     show (Col _ c) = escapeIdentifier c
     show (Concat x y) = "CONCAT( " ++ (show x) ++ ", " ++ (show y) ++ ")"
-    show (Is x y) = wpe x  ++ " = " ++ wpe y
+    show (Is x y) = show x ++ " = " ++ show y -- Should be within parentheses maybe?
     show (And x y) = wpe x ++ " AND " ++ wpe y
     show (Or x y) = wpe x ++ " OR " ++ wpe y
     show (InSubQuery x s) = wpe x ++ " IN " ++ wp (show s)
@@ -323,12 +328,25 @@ mutual
   wpe : Expr _ _ -> String
   wpe = assert_total (wp . show)
 
+  showWhere : Expr accs Bool -> String
+  showWhere (Const {sp=BoolSql} t) =
+    case t of
+      True => ""
+      False => "WHERE FALSE \n"
+  showWhere w = "WHERE " ++ show w ++ "\n"
+
   export
   Show (Select target) where
-    show (SelectQuery exprs f w j) = 
-      "SELECT "  ++ show exprs ++ "\n" ++
-      "FROM " ++ escapeIdentifier (name f) ++ "\n" ++
-      "WHERE " ++ show w ++ "\n" ++ show j
+    show (SelectQuery exprs f w j o) = 
+      let order = case o of
+                    Nothing => ""
+                    Just e => "ORDER BY " ++  wpe e ++ "\n"
+      in
+        "SELECT "  ++ show exprs ++ "\n" ++
+        "FROM " ++ escapeIdentifier (name f) ++ "\n" ++
+        showWhere w ++
+        show j ++ "\n" ++
+        order
   
 export
 Show Update where

@@ -3,7 +3,9 @@ module Sql.JS
 import Sql
 import Event
 import Record
+
 import FerryJS
+import FerryJS.Util
 
 import Effects
 
@@ -57,7 +59,7 @@ runSelectQuery query conn = (`MkPair` query) <$> runQuery conn (show query)
 
 export
 waitSelectResult : SelectQueryResult sch -> Event Single (List (Record sch))
-waitSelectResult (ptr, (SelectQuery {r} {res} exprs _ _ _)) =
+waitSelectResult (ptr, (SelectQuery {r} {res} exprs _ _ _ _)) =
   let schema = [("rows", List (Record (r::res)))]
   in let ti = toIdrisList (toIdrisExprs exprs)
   in let ev = assert_total $ ptrToEvent {to=Record schema} Node (pure ptr) "" 
